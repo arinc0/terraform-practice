@@ -2,13 +2,9 @@ variable "name" {}
 variable "policy" {}
 variable "identifier" {}
 
-# IAMロールには受け入れるロール定義を設定する
-resource "aws_iam_role" "default" {
-  name = var.name
-  assume_role_policy = data.aws_iam_policy_document.assume_role.json
-}
 
 # ロールを引き受ける設定定義ドキュメント
+# サービスEC2用のassume role policy document
 data "aws_iam_policy_document" "assume_role" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -19,6 +15,13 @@ data "aws_iam_policy_document" "assume_role" {
       type        = "Service"
     }
   }
+}
+
+# IAMロールには受け入れるロール定義を設定する
+resource "aws_iam_role" "default" {
+  name = var.name
+  # assumeRoleについて書かれたポリシードキュメントを指定
+  assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
 # 入力されたポリシードキュメントを元にpolicyを作成
