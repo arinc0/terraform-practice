@@ -57,23 +57,6 @@ resource "aws_s3_bucket" "private" {
   }
 }
 
-# IDEで警告下記に直せと警告が出るが動作しない
-#resource "aws_s3_bucket_server_side_encryption_configuration" "apply-server-side-encryption" {
-#  bucket = aws_s3_bucket.private.id
-#  rule {
-#    apply_server_side_encryption_by_default {
-#      sse_algorithm = "AES256"
-#    }
-#  }
-#}
-#
-#resource "aws_s3_bucket_versioning" "enable-versioning" {
-#  bucket = aws_s3_bucket.private.id
-#  versioning_configuration {
-#    status = "Enabled"
-#  }
-#}
-
 resource "aws_s3_bucket_public_access_block" "private" {
   bucket = aws_s3_bucket.private.id
   block_public_acls = true
@@ -111,20 +94,6 @@ resource "aws_s3_bucket" "alb_log" {
   }
 }
 
-# MEMO: https://docs.aws.amazon.com/ja_jp/elasticloadbalancing/latest/classic/enable-access-logs.html
-#{
-#  "Version": "2012-10-17",
-#  "Statement": [
-#    {
-#    "Effect": "Allow",
-#    "Principal": {
-#      "AWS": "arn:aws:iam::elb-account-id:root"
-#    },
-#    "Action": "s3:PutObject",
-#    "Resource": "arn:aws:s3:::bucket-name/prefix/AWSLogs/your-aws-account-id/*"
-#    }
-#  ]
-#}
 data "aws_iam_policy_document" "alb_log" {
   statement {
     effect = "Allow"
@@ -143,6 +112,7 @@ data "aws_iam_policy_document" "alb_log" {
   }
 }
 
+// ポリシードキュメント(JSON)をバケットに設定
 resource "aws_s3_bucket_policy" "alb_log" {
   bucket = aws_s3_bucket.alb_log.id
   policy = data.aws_iam_policy_document.alb_log.json
