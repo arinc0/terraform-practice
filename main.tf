@@ -118,6 +118,65 @@ resource "aws_s3_bucket_policy" "alb_log" {
   policy = data.aws_iam_policy_document.alb_log.json
 }
 
+// :::::::::::::::::::::::::::::::::::::::::::::
+//  パブリックサブネット
+// :::::::::::::::::::::::::::::::::::::::::::::
+
+resource "aws_vpc" "example" {
+  cidr_block = "10.0.0.0/16"
+  // AWSのDNSサーバーによる名前解決を有効にする
+  enable_dns_support = true
+  // パブリックDNSホスト名を自動的に割り当てる
+  enable_dns_hostnames = true
+
+  tags = {
+    Name = "example"
+  }
+}
+
+resource "aws_subnet" "public" {
+  vpc_id = aws_vpc.example.id
+  // VPCは/16、サブネットは/24単位にするとわかりやすい
+  cidr_block = "10.0.0.0/24"
+  // サブネットで起動したインスタンスにパブリックIPを自動的に割り当ててくれる
+  // パブリックIPアドレスを自動的に割り当ててくれる
+  map_public_ip_on_launch = true
+  availability_zone = "ap-northeast-1a"
+}
+
+// VPCは単体ではインターネットと接続できないので
+// IGWを作成してVPC<=>インターネット間の間で通信ができるようにします
+resource "aws_internet_gateway" "example" {
+  vpc_id = aws_vpc.example.id
+}
+
+// IGWだけではインターネットと通信できない
+// ネットワークにデータを流す為。ルーティング情報を管理するルートテーブルが必要
+// ルートテーブルはVPC内の通信を有効にするためローカルルートが自動的に作成される
+// これによってVPC内はルーティングされる
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.example.id
+}
+
+// ルートはルートテーブルの１レコードに該当
+resource "aws_route" "public" {
+  route_table_id = aws_route_table.public.id
+  gateway_id = aws_internet_gateway.example.id
+  // 全ての通信 ≒ デフォルトルート
+  // をインターネットゲートウェイに送る
+  destination_cidr_block = "0.0.0.0/0"
+}
+
+// ルートテーブルをサブネットに関連づける
+// VPCに紐付けても、このVPCでこのルートテーブルを使用する
+// という設定のみなので、サブネットごとに設定をする
+// 関連づけを忘れた場合デフォルトルートテーブルが
+// 自動的に使用されるがアンチパターンなので関連づけること
+resource "aws_route_table_association" "public" {
+  subnet_id = aws_subnet.public.id
+  route_table_id = aws_route_table.public.id
+}
+
 # -- 以下出力 ---------------------------
 output "public_dns" {
   # module で定義されたoutputを受け取る
